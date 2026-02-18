@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id                Int       @id @default(autoincrement())
+  username          String    @unique @db.VarChar(50)
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  numeroCelular     String?   @map("numero_celular") @db.VarChar(15)
+  numeroTrabajador  String    @map("numero_trabajador") @db.VarChar(20)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("usuarios")
+}
+
+model Inventario {
+  id                Int       @id @default(autoincrement())
+  eco               String    @unique @db.VarChar(20)
+  tipo              String    @db.VarChar(50)
+  placas            String?   @db.VarChar(20)
+  marca             String?   @db.VarChar(50)
+  modelo            String?   @db.VarChar(50)
+  tipoDetalle       String?   @map("tipo_detalle") @db.VarChar(50)
+  googleSheetsSync  Boolean   @default(false) @map("google_sheets_sync")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  equipos           Equipo[]
+  registros         Registro[] @relation("TractoRegistro")
+
+  @@map("inventario")
+}
+
+model Equipo {
+  id              Int       @id @default(autoincrement())
+  contenedor      String    @db.VarChar(50)
+  chasisId        Int?      @map("chasis_id")
+  tipo            String?   @db.VarChar(10)
+  placa           String?   @db.VarChar(20)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  chasis          Inventario?  @relation(fields: [chasisId], references: [id])
+  registros       RegistroEquipo[]
+
+  @@map("equipos")
+}
+
+model Registro {
+  id              Int       @id @default(autoincrement())
+  fechaHora       DateTime  @map("fecha_hora")
+  tractoId        Int?      @map("tracto_id")
+  ecoTracto       String?   @map("eco_tracto") @db.VarChar(20)
+  placaTracto     String?   @map("placa_tracto") @db.VarChar(20)
+  operacion       String    @db.VarChar(100)
+  operador        String    @db.VarChar(150)
+  destino         String?   @db.VarChar(200)
+  cartasPorte     String?   @map("cartas_porte") @db.Text
+  estatus         String?   @db.VarChar(50)
+  dollySistema    String?   @map("dolly_sistema") @db.VarChar(50)
+  generador       String?   @db.VarChar(50)
+  observaciones   String?   @db.Text
+  jsonCompleto    Json?     @map("json_completo")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tracto          Inventario?  @relation("TractoRegistro", fields: [tractoId], references: [id])
+  equipos         RegistroEquipo[]
+
+  @@index([fechaHora(sort: Desc)])
+  @@index([operador])
+  @@index([operacion])
+  @@map("registros")
+}
+
+model RegistroEquipo {
+  id          Int      @id @default(autoincrement())
+  registroId  Int      @map("registro_id")
+  equipoId    Int      @map("equipo_id")
+
+  registro    Registro @relation(fields: [registroId], references: [id], onDelete: Cascade)
+  equipo      Equipo   @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+
+  @@unique([registroId, equipoId])
+  @@map("registros_equipos")
+}
