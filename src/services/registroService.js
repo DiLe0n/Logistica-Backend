@@ -4,10 +4,16 @@ const prisma = new PrismaClient();
 class RegistroService {
   async crearRegistro(data) {
     try {
-      const resultado_final = data.resultado_final || data;
+      const resultado_final = data.resultado_final || data.registro || data;
 
       // Parsear fecha
       const fechaHora = this.parsearFecha(resultado_final.fecha_hora);
+
+      // Determinar si es entrada o salida
+      const operacion = resultado_final.operacion || '';
+      const esEntrada = operacion.toUpperCase().includes('ENTRADA');
+      const esSalida = operacion.toUpperCase().includes('SALIDA');
+      const nuevoEstadoPatio = esEntrada ? true : (esSalida ? false : null);
 
       // Buscar tracto en inventario por ECO
       let tracto = null;
@@ -15,6 +21,15 @@ class RegistroService {
         tracto = await prisma.inventario.findUnique({
           where: { eco: resultado_final.eco_tracto }
         });
+
+        // Actualizar estado del tracto si corresponde
+        if (tracto && nuevoEstadoPatio !== null) {
+          await prisma.inventario.update({
+            where: { id: tracto.id },
+            data: { enPatio: nuevoEstadoPatio }
+          });
+        }
+
       }
 
       // Crear el registro principal
@@ -45,6 +60,14 @@ class RegistroService {
             chasis = await prisma.inventario.findUnique({
               where: { eco: equipoData.chasis }
             });
+
+            // Actualizar estado del chasis si corresponde
+            if (chasis && nuevoEstadoPatio !== null) {
+              await prisma.inventario.update({
+                where: { id: chasis.id },
+                data: { enPatio: nuevoEstadoPatio }
+              });
+            }
           }
 
           // Crear equipo
@@ -63,6 +86,20 @@ class RegistroService {
               registroId: registro.id,
               equipoId: equipo.id
             }
+          });
+        }
+      }
+
+      // Actualizar dolly si existe
+      if (resultado_final.dolly_sistema && resultado_final.dolly_sistema !== 'N/A' && nuevoEstadoPatio !== null) {
+        const dolly = await prisma.inventario.findUnique({
+          where: { eco: resultado_final.dolly_sistema }
+        });
+
+        if (dolly) {
+          await prisma.inventario.update({
+            where: { id: dolly.id },
+            data: { enPatio: nuevoEstadoPatio }
           });
         }
       }
@@ -93,14 +130,23 @@ class RegistroService {
   }
 
   parsearFecha(fechaString) {
-    // Formato: "16/2/2026, 10:52:00" (día/mes/año)
-    const [fecha, hora] = fechaString.split(', ');
-    const [dia, mes, año] = fecha.split('/');
-    return new Date(`${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}T${hora}`);
-  }
+   if (!fechaString) {
+     return new Date(); // Si no viene fecha, usa fecha actual
+   }
+  
+   try {
+     // Formato: "16/2/2026, 10:52:00" (día/mes/año)
+     const [fecha, hora] = fechaString.split(', ');
+     const [dia, mes, año] = fecha.split('/');
+     return new Date(`${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}T${hora}`);
+   } catch (error) {
+     console.error('Error parseando fecha:', fechaString, error);
+     return new Date(); // Fallback a fecha actual
+   }
+ }
 
   async listarRegistros(filtros = {}) {
-    const { page = 1, limit = 50, operacion, operador, fechaInicio, fechaFin } = filtros;
+    const { page, limit, operacion, operador, fechaInicio, fechaFin } = filtros;
     
     const where = {};
     if (operacion) where.operacion = { contains: operacion, mode: 'insensitive' };
@@ -111,23 +157,27 @@ class RegistroService {
       if (fechaFin) where.fechaHora.lte = new Date(fechaFin);
     }
 
-    const [registros, total] = await Promise.all([
-      prisma.registro.findMany({
-        where,
+const queryOptions = {
+    where,
+    include: {
+      tracto: true,
+      equipos: {
         include: {
-          tracto: true,
-          equipos: {
-            include: {
-              equipo: {
-                include: { chasis: true }
-              }
-            }
-          }
-        },
-        orderBy: { fechaHora: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit
-      }),
+          equipo: { include: { chasis: true } }
+        }
+      }
+    },
+    orderBy: { fechaHora: 'desc' }
+  };
+
+  // Solo agregar paginación si se especifica
+  if (limit) {
+    queryOptions.skip = page ? (page - 1) * limit : 0;
+    queryOptions.take = parseInt(limit);
+  }
+
+    const [registros, total] = await Promise.all([
+      prisma.registro.findMany(queryOptions),
       prisma.registro.count({ where })
     ]);
 

@@ -4,19 +4,26 @@ const prisma = new PrismaClient();
 
 exports.listarInventario = async (req, res) => {
   try {
-    const { tipo, eco, page = 1, limit = 50 } = req.query;
+    const { tipo, eco, page, limit } = req.query;
     
     const where = {};
     if (tipo) where.tipo = { contains: tipo, mode: 'insensitive' };
     if (eco) where.eco = { contains: eco, mode: 'insensitive' };
 
+const queryOptions = {
+      where,
+      orderBy: { eco: 'asc' }
+    };
+
+    if (limit) {
+     const parsedLimit = parseInt(limit);
+     const parsedPage = parseInt(page) || 1;
+     queryOptions.skip = (parsedPage - 1) * parsedLimit;
+     queryOptions.take = parsedLimit;
+    }
+
     const [inventario, total] = await Promise.all([
-      prisma.inventario.findMany({
-        where,
-        orderBy: { eco: 'asc' },
-        skip: (page - 1) * limit,
-        take: parseInt(limit)
-      }),
+      prisma.inventario.findMany(queryOptions),
       prisma.inventario.count({ where })
     ]);
 

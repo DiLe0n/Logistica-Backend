@@ -27,6 +27,7 @@ model Inventario {
   marca             String?   @db.VarChar(50)
   modelo            String?   @db.VarChar(50)
   tipoDetalle       String?   @map("tipo_detalle") @db.VarChar(50)
+  enPatio           Boolean   @default(true) @map("en_patio")
   googleSheetsSync  Boolean   @default(false) @map("google_sheets_sync")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
