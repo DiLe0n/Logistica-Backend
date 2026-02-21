@@ -191,6 +191,65 @@ const queryOptions = {
       }
     };
   }
+
+  async actualizarRegistro(id, data) {
+  try {
+    // Verificar si existe
+    const registroExistente = await prisma.registro.findUnique({
+      where: { id }
+    });
+
+    if (!registroExistente) {
+      return null;
+    }
+
+    // Actualizar campos básicos
+    const registroActualizado = await prisma.registro.update({
+      where: { id },
+      data: {
+        operacion: data.operacion,
+        operador: data.operador,
+        destino: data.destino,
+        cartasPorte: data.cartasPorte,
+        estatus: data.estatus,
+        dollySistema: data.dollySistema,
+        generador: data.generador,
+        observaciones: data.observaciones,
+        updatedAt: new Date()
+      }
+    });
+
+    return await this.obtenerRegistroCompleto(id);
+  } catch (error) {
+    console.error('Error al actualizar registro:', error);
+    throw error;
+  }
 }
 
+async eliminarRegistro(id) {
+  try {
+    const registroExistente = await prisma.registro.findUnique({
+      where: { id }
+    });
+
+    if (!registroExistente) {
+      return null;
+    }
+
+    // Prisma automáticamente elimina las relaciones en registros_equipos por onDelete: Cascade
+    await prisma.registro.delete({
+      where: { id }
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error al eliminar registro:', error);
+    throw error;
+  }
+}
+}
+
+
+
 module.exports = new RegistroService();
+

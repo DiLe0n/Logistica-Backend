@@ -86,3 +86,135 @@ exports.obtenerPorEco = async (req, res) => {
     });
   }
 };
+
+exports.crearInventario = async (req, res) => {
+  try {
+    const { eco, tipo, placas, marca, modelo, tipoDetalle, enPatio } = req.body;
+
+    if (!eco || !tipo) {
+      return res.status(400).json({
+        success: false,
+        error: 'ECO y TIPO son campos requeridos'
+      });
+    }
+
+    const inventario = await prisma.inventario.create({
+      data: {
+        eco,
+        tipo,
+        placas: placas || null,
+        marca: marca || null,
+        modelo: modelo || null,
+        tipoDetalle: tipoDetalle || null,
+        enPatio: enPatio !== undefined ? enPatio : true
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: inventario
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        success: false,
+        error: 'El ECO ya existe en el inventario'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.actualizarInventario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { eco, tipo, placas, marca, modelo, tipoDetalle, enPatio } = req.body;
+
+    const inventarioExistente = await prisma.inventario.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!inventarioExistente) {
+      return res.status(404).json({
+        success: false,
+        error: 'Unidad no encontrada'
+      });
+    }
+
+    const inventario = await prisma.inventario.update({
+      where: { id: parseInt(id) },
+      data: {
+        eco: eco || inventarioExistente.eco,
+        tipo: tipo || inventarioExistente.tipo,
+        placas: placas !== undefined ? placas : inventarioExistente.placas,
+        marca: marca !== undefined ? marca : inventarioExistente.marca,
+        modelo: modelo !== undefined ? modelo : inventarioExistente.modelo,
+        tipoDetalle: tipoDetalle !== undefined ? tipoDetalle : inventarioExistente.tipoDetalle,
+        enPatio: enPatio !== undefined ? enPatio : inventarioExistente.enPatio,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      data: inventario
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        success: false,
+        error: 'El ECO ya existe en el inventario'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.eliminarInventario = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const inventarioExistente = await prisma.inventario.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        equipos: true,
+        registros: true
+      }
+    });
+
+    if (!inventarioExistente) {
+      return res.status(404).json({
+        success: false,
+        error: 'Unidad no encontrada'
+      });
+    }
+
+    // Verificar si tiene relaciones
+    if (inventarioExistente.equipos.length > 0 || inventarioExistente.registros.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No se puede eliminar esta unidad porque tiene registros asociados'
+      });
+    }
+
+    await prisma.inventario.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({
+      success: true,
+      message: 'Unidad eliminada correctamente'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};

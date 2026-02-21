@@ -8,7 +8,12 @@ const inventarioRoutes = require('./routes/inventario');
 
 const app = express();
 
-app.use(cors());
+// CORS - permite requests desde tu frontend
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*', // En producción especifica la URL de tu front
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Rutas
@@ -21,7 +26,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
 });
 
-// Manejo de errores 404
+// 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -29,7 +34,7 @@ app.use((req, res) => {
   });
 });
 
-// Manejo de errores global
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
@@ -39,7 +44,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => { // Escucha en todas las interfaces
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
 

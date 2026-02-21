@@ -148,3 +148,162 @@ exports.perfil = async (req, res) => {
     });
   }
 };
+
+exports.listarUsuarios = async (req, res) => {
+  try {
+    const usuarios = await prisma.usuario.findMany({
+      select: {
+        id: true,
+        username: true,
+        numeroCelular: true,
+        numeroTrabajador: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: usuarios
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.obtenerUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true,
+        username: true,
+        numeroCelular: true,
+        numeroTrabajador: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!usuario) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: usuario
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.actualizarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password, numeroCelular, numeroTrabajador } = req.body;
+
+    const usuarioExistente = await prisma.usuario.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!usuarioExistente) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    const dataToUpdate = {
+      username: username || usuarioExistente.username,
+      numeroCelular: numeroCelular !== undefined ? numeroCelular : usuarioExistente.numeroCelular,
+      numeroTrabajador: numeroTrabajador || usuarioExistente.numeroTrabajador,
+      updatedAt: new Date()
+    };
+
+    // Si se proporciona nueva contraseña, hashearla
+    if (password) {
+      dataToUpdate.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    const usuario = await prisma.usuario.update({
+      where: { id: parseInt(id) },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        username: true,
+        numeroCelular: true,
+        numeroTrabajador: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    res.json({
+      success: true,
+      data: usuario
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        success: false,
+        error: 'El username ya existe'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+exports.eliminarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // No permitir que el usuario se elimine a sí mismo
+    if (req.usuario.id === parseInt(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'No puedes eliminar tu propio usuario'
+      });
+    }
+
+    const usuarioExistente = await prisma.usuario.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!usuarioExistente) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    await prisma.usuario.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuario eliminado correctamente'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
