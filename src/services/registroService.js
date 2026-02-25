@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 class RegistroService {
   async crearRegistro(data) {
     try {
-      const resultado_final = data.resultado_final || data.registro || data;
+      const resultado_final = data.resultado_final || data.registro_final || data.registro || data;
 
       // Parsear fecha
       const fechaHora = this.parsearFecha(resultado_final.fecha_hora);
@@ -207,6 +207,9 @@ const queryOptions = {
     const registroActualizado = await prisma.registro.update({
       where: { id },
       data: {
+	fechaHora: data.fechaHora ? new Date(data.fechaHora) : registroExistente.fechaHora,
+	ecoTracto: data.ecoTracto,
+	placaTracto: data.placaTracto,
         operacion: data.operacion,
         operador: data.operador,
         destino: data.destino,

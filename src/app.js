@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const registrosRoutes = require('./routes/registros');
+const equiposRoutes = require('./routes/equipos');
 const authRoutes = require('./routes/auth');
 const inventarioRoutes = require('./routes/inventario');
 
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use('/api/registros', registrosRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/inventario', inventarioRoutes);
+app.use('/api/equipos', equiposRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
